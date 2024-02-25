@@ -121,8 +121,8 @@ export default class Database {
     };
   }
 
-  async transaction_execute(queries: string[]): Promise<void> {
-    await invoke<[number, number]>('plugin:sql|transaction_execute', {
+  async transaction_execute(queries: string[]) {
+    await invoke('plugin:sql|transaction_execute', {
       db: this.path,
       queries,
     });
