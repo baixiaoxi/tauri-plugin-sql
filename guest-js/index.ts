@@ -121,13 +121,6 @@ export default class Database {
     };
   }
 
-  async transaction_execute(queries: string[]) {
-    await invoke('plugin:sql|transaction_execute', {
-      db: this.path,
-      queries,
-    });
-  }
-  
   /**
    * **select**
    *
@@ -177,4 +170,17 @@ export default class Database {
 
     return success;
   }
+}
+
+/// 多个事务一起执行, 确保所有的事务都成功执行, 否则回滚
+export async function transaction_execute(params: { db: Database; queries: string[] }[]) {
+  const db_and_queries = [];
+  for (let i = 0; i < params.length; i += 1) {
+    db_and_queries.push({
+      db: params[i].db.path,
+      queries: params[i].queries,
+    });
+  }
+
+  await invoke('plugin:sql|transaction_execute', { db_and_queries });
 }

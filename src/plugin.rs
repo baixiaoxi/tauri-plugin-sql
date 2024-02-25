@@ -10,7 +10,7 @@ use sqlx::{
     migrate::{
         MigrateDatabase, Migration as SqlxMigration, MigrationSource, MigrationType, Migrator,
     },
-    Column, Executor, Pool, Row,
+    Column, Executor, Pool, Row, Transaction,
 };
 use tauri::{
     command,
@@ -231,19 +231,38 @@ async fn execute(
 #[command]
 async fn transaction_execute(
     db_instances: State<'_, DbInstances>,
-    db: String,
-    queries: Vec<String>,
+    db_and_queries: Vec<(String, Vec<String>)>,
 ) -> Result<()> {
     let mut instances = db_instances.0.lock().await;
-    let db = instances.get_mut(&db).ok_or(Error::DatabaseNotLoaded(db))?;
-    let mut transaction = db.begin().await?;
-
-    for query in queries {
-        let query = sqlx::query(&query);
-        let _ = transaction.execute(query).await?;
+    // 1.提取所有数据库的事务连接
+    let mut transactions: HashMap<String, Transaction<'_, Db>> = HashMap::new();
+    for (db, _) in db_and_queries.iter() {
+        let pooled_db = instances
+            .get_mut(db)
+            .ok_or(Error::DatabaseNotLoaded(db.clone()))?;
+        let transaction = pooled_db.begin().await?;
+        transactions.insert(db.clone(), transaction);
     }
 
-    transaction.commit().await?;
+    // 2.执行所有事务
+    for (db, queries) in db_and_queries.iter() {
+        let transaction = transactions
+            .get_mut(db)
+            .ok_or(Error::DatabaseNotLoaded(db.clone()))?;
+
+        for query in queries {
+            let query = sqlx::query(query);
+            let _ = transaction.execute(query).await?;
+        }
+    }
+
+    // 3.提交所有事务
+    // todo! baixiaoxi, 这有个失败点, 假如某个事务提交失败, 那么后续的事务就不会提交了, 但前面的事务已经提交
+    // 多个数据库能不能组成一个事务?distributed transaction
+    for (_, transaction) in transactions {
+        transaction.commit().await?;
+    }
+
     Ok(())
 }
 
