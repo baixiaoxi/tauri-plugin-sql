@@ -112,7 +112,25 @@ export default class Database {
         db: this.path,
         query,
         values: bindValues ?? [],
-      },
+      }
+    );
+    return {
+      lastInsertId,
+      rowsAffected,
+    };
+  }
+
+  async transaction_execute(
+    query: string,
+    bindValues?: unknown[]
+  ): Promise<QueryResult> {
+    const [rowsAffected, lastInsertId] = await invoke<[number, number]>(
+      "plugin:sql|transaction_execute",
+      {
+        db: this.path,
+        query,
+        values: bindValues ?? [],
+      }
     );
     return {
       lastInsertId,
