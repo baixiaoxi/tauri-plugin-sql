@@ -10,7 +10,7 @@ use sqlx::{
     migrate::{
         MigrateDatabase, Migration as SqlxMigration, MigrationSource, MigrationType, Migrator,
     },
-    Column, Pool, Row,
+    Column, Executor, Pool, Row,
 };
 use tauri::{
     command,
@@ -236,11 +236,11 @@ async fn transaction_execute(
 ) -> Result<()> {
     let mut instances = db_instances.0.lock().await;
     let db = instances.get_mut(&db).ok_or(Error::DatabaseNotLoaded(db))?;
-    let transaction = db.begin().await?;
+    let mut transaction = db.begin().await?;
 
     for query in queries {
         let query = sqlx::query(&query);
-        let _ = query.execute(&*db).await?;
+        let _ = transaction.execute(query).await?;
     }
 
     transaction.commit().await?;
@@ -309,7 +309,13 @@ impl Builder {
     pub fn build<R: Runtime>(mut self) -> TauriPlugin<R, Option<PluginConfig>> {
         PluginBuilder::<R, Option<PluginConfig>>::new("sql")
             .js_init_script(include_str!("api-iife.js").to_string())
-            .invoke_handler(tauri::generate_handler![load, execute, transaction_execute, select, close])
+            .invoke_handler(tauri::generate_handler![
+                load,
+                execute,
+                transaction_execute,
+                select,
+                close
+            ])
             .setup(|app, api| {
                 let config = api.config().clone().unwrap_or_default();
 
