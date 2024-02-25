@@ -195,11 +195,16 @@ async fn close(db_instances: State<'_, DbInstances>, db: Option<String>) -> Resu
 }
 
 /// Execute a command against the database
-async fn execute_impl(
-    db: &mut Pool<Db>,
+#[command]
+async fn execute(
+    db_instances: State<'_, DbInstances>,
+    db: String,
     query: String,
     values: Vec<JsonValue>,
 ) -> Result<(u64, LastInsertId)> {
+    let mut instances = db_instances.0.lock().await;
+    let db = instances.get_mut(&db).ok_or(Error::DatabaseNotLoaded(db))?;
+
     let mut query = sqlx::query(&query);
     for value in values {
         if value.is_null() {
@@ -212,6 +217,7 @@ async fn execute_impl(
             query = query.bind(value);
         }
     }
+
     let result = query.execute(&*db).await?;
     #[cfg(feature = "sqlite")]
     let r = Ok((result.rows_affected(), result.last_insert_rowid()));
@@ -223,34 +229,22 @@ async fn execute_impl(
 }
 
 #[command]
-async fn execute(
-    db_instances: State<'_, DbInstances>,
-    db: String,
-    query: String,
-    values: Vec<JsonValue>,
-) -> Result<(u64, LastInsertId)> {
-    let mut instances = db_instances.0.lock().await;
-    let db = instances.get_mut(&db).ok_or(Error::DatabaseNotLoaded(db))?;
-
-    execute_impl(db, query, values).await
-}
-
-#[command]
 async fn transaction_execute(
     db_instances: State<'_, DbInstances>,
     db: String,
-    query: String,
-    values: Vec<JsonValue>,
-) -> Result<(u64, LastInsertId)> {
+    queries: Vec<String>,
+) -> Result<()> {
     let mut instances = db_instances.0.lock().await;
     let db = instances.get_mut(&db).ok_or(Error::DatabaseNotLoaded(db))?;
     let transaction = db.begin().await?;
 
-    let result = execute_impl(db, query, values).await?;
+    for query in queries {
+        let query = sqlx::query(&query);
+        let _ = query.execute(&*db).await?;
+    }
 
     transaction.commit().await?;
-
-    Ok(result)
+    Ok(())
 }
 
 #[command]

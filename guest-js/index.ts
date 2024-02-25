@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from '@tauri-apps/api/core';
 
 export interface QueryResult {
   /** The number of rows affected by the query. */
@@ -26,6 +26,7 @@ export interface QueryResult {
  */
 export default class Database {
   path: string;
+
   constructor(path: string) {
     this.path = path;
   }
@@ -45,8 +46,9 @@ export default class Database {
    * const db = await Database.load("sqlite:test.db");
    * ```
    */
+
   static async load(path: string): Promise<Database> {
-    const _path = await invoke<string>("plugin:sql|load", {
+    const _path = await invoke<string>('plugin:sql|load', {
       db: path,
     });
 
@@ -69,6 +71,7 @@ export default class Database {
    * const db = Database.get("sqlite:test.db");
    * ```
    */
+
   static get(path: string): Database {
     return new Database(path);
   }
@@ -105,38 +108,26 @@ export default class Database {
    * );
    * ```
    */
+
   async execute(query: string, bindValues?: unknown[]): Promise<QueryResult> {
-    const [rowsAffected, lastInsertId] = await invoke<[number, number]>(
-      "plugin:sql|execute",
-      {
-        db: this.path,
-        query,
-        values: bindValues ?? [],
-      }
-    );
+    const [rowsAffected, lastInsertId] = await invoke<[number, number]>('plugin:sql|execute', {
+      db: this.path,
+      query,
+      values: bindValues ?? [],
+    });
     return {
       lastInsertId,
       rowsAffected,
     };
   }
 
-  async transaction_execute(
-    query: string,
-    bindValues?: unknown[]
-  ): Promise<QueryResult> {
-    const [rowsAffected, lastInsertId] = await invoke<[number, number]>(
-      "plugin:sql|transaction_execute",
-      {
-        db: this.path,
-        query,
-        values: bindValues ?? [],
-      }
-    );
-    return {
-      lastInsertId,
-      rowsAffected,
-    };
+  async transaction_execute(queries: string[]): Promise<void> {
+    await invoke<[number, number]>('plugin:sql|transaction_execute', {
+      db: this.path,
+      queries,
+    });
   }
+  
   /**
    * **select**
    *
@@ -155,8 +146,9 @@ export default class Database {
    * );
    * ```
    */
+
   async select<T>(query: string, bindValues?: unknown[]): Promise<T> {
-    const result = await invoke<T>("plugin:sql|select", {
+    const result = await invoke<T>('plugin:sql|select', {
       db: this.path,
       query,
       values: bindValues ?? [],
@@ -176,10 +168,13 @@ export default class Database {
    * ```
    * @param db - Optionally state the name of a database if you are managing more than one. Otherwise, all database pools will be in scope.
    */
+
   async close(db?: string): Promise<boolean> {
-    const success = await invoke<boolean>("plugin:sql|close", {
+    const success = await invoke<boolean>('plugin:sql|close', {
       db,
+      path: this.path, // 多余字段, 为了eslint不报错, 必须使用一下this
     });
+
     return success;
   }
 }

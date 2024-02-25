@@ -301,6 +301,20 @@
           "enum": [
             "deny-select"
           ]
+        },
+        {
+          "description": "allow-transaction-execute -> Enables the transaction_execute command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-transaction-execute"
+          ]
+        },
+        {
+          "description": "deny-transaction-execute -> Denies the transaction_execute command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-transaction-execute"
+          ]
         }
       ]
     }

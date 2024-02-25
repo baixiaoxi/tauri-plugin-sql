@@ -32,3 +32,11 @@ Enables the select command without any pre-configured scope.
 
 Denies the select command without any pre-configured scope.
 
+## allow-transaction-execute
+
+Enables the transaction_execute command without any pre-configured scope.
+
+## deny-transaction-execute
+
+Denies the transaction_execute command without any pre-configured scope.
+
